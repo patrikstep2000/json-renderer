@@ -449,14 +449,19 @@ export default function JsonRenderer({
     formStateFor,
     formStateIs,
     formMessageFor,
+    navRole,
+    mobileMenuTarget: mobileMenuTargetAttr,
+    mobileToggleTarget: mobileToggleTargetAttr,
+    closeOnNavigate: closeOnNavigateAttr,
+    openClass: openClassAttr,
+    closedClass: closedClassAttr,
     ...safeAttributes
   } = resolvedAttributes;
-  const navRole = resolvedAttributes.navRole;
-  const mobileMenuTarget = asString(resolvedAttributes.mobileMenuTarget);
-  const mobileToggleTarget = asString(resolvedAttributes.mobileToggleTarget);
-  const closeOnNavigate = asBoolean(resolvedAttributes.closeOnNavigate);
-  const openClass = asString(resolvedAttributes.openClass) ?? 'block';
-  const closedClass = asString(resolvedAttributes.closedClass) ?? 'hidden';
+  const mobileMenuTarget = asString(mobileMenuTargetAttr);
+  const mobileToggleTarget = asString(mobileToggleTargetAttr);
+  const closeOnNavigate = asBoolean(closeOnNavigateAttr);
+  const openClass = asString(openClassAttr) ?? 'block';
+  const closedClass = asString(closedClassAttr) ?? 'hidden';
   const mergedClassName = resolveResponsiveClassName(
     node.className ?? asString(attributeClassName) ?? asString(htmlClass),
     node.tailwindClassName,
