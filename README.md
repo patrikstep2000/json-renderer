@@ -1,8 +1,8 @@
-# json-renderer
+# @patrikstep/json-renderer
 
 React component that renders **site JSON** templates: a recursive `SiteNode` tree with optional `dataBinding` against arbitrary `Record<string, unknown>` view data.
 
-Published package name **`json-renderer`** (see `package.json` `name`). Import paths below use that name; with `npm link` or `"file:../json-renderer"`, the import string stays the same if the consuming app depends on this package under that name.
+**npm package:** [`@patrikstep/json-renderer`](https://www.npmjs.com/package/@patrikstep/json-renderer) (see `package.json` `name`). Use this scoped name in imports; with `npm link` or a `file:` dependency, the import string matches what you list under `dependencies`.
 
 ## Install
 
@@ -15,11 +15,11 @@ Peer dependencies: `react`, `react-dom` (18+ or 19+).
 ## Public API
 
 - **Default export:** `JsonRenderer` (React component).
-- **Also exported:** renderer prop types (`JsonRendererProps`, `JsonDateInputProps`, `JsonSelectInputProps`, `JsonRendererComponents`), site schema types (`SiteJSON`, `SiteNode`, `SitePage`, … from `SiteJSON`), `SITE_JSON_VERSION`, `SITE_VIEWPORT_BREAKPOINTS`, allowlist helpers (`ALLOWED_TAGS`, `isAllowedTag`), and responsive helpers from `responsiveUtils`.
+- **Also exported:** renderer prop types (`JsonRendererProps`, `JsonDateInputProps`, `JsonSelectInputProps`, `JsonRendererComponents`), site schema types (`SiteJSON`, `SiteNode`, `SitePage`, …), `SITE_JSON_VERSION`, `SITE_VIEWPORT_BREAKPOINTS`, allowlist helpers (`ALLOWED_TAGS`, `isAllowedTag`), and responsive helpers from `responsiveUtils`.
 
 ```ts
-import JsonRenderer from 'json-renderer';
-import type { SiteNode, SiteJSON, JsonRendererProps } from 'json-renderer';
+import JsonRenderer from '@patrikstep/json-renderer';
+import type { SiteNode, SiteJSON, JsonRendererProps } from '@patrikstep/json-renderer';
 ```
 
 ## Usage
@@ -27,8 +27,8 @@ import type { SiteNode, SiteJSON, JsonRendererProps } from 'json-renderer';
 Minimal example (only required props are `node`, `data`, and `viewportWidth`):
 
 ```tsx
-import JsonRenderer from 'json-renderer';
-import type { SiteNode } from 'json-renderer';
+import JsonRenderer from '@patrikstep/json-renderer';
+import type { SiteNode } from '@patrikstep/json-renderer';
 
 declare const rootSiteNode: SiteNode;
 
@@ -115,10 +115,10 @@ With Tailwind v4, add a source path to this package in your CSS, for example:
 
 ```css
 @import "tailwindcss";
-@source "../node_modules/json-renderer/dist/index.js";
+@source "../node_modules/@patrikstep/json-renderer/dist/index.js";
 ```
 
-Adjust the relative path from your CSS file to the installed package (`node_modules/json-renderer/...` or your linked copy).
+The package installs under `node_modules/@patrikstep/json-renderer/` — adjust the `@source` path relative to your CSS entry file.
 
 ## Developing this package
 

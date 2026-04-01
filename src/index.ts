@@ -1,4 +1,4 @@
-/** Package entry: default export `JsonRenderer`, plus schema types, responsive helpers, and tag allowlist. */
+/** Published as `@patrikstep/json-renderer`: default export `JsonRenderer`, plus schema types, responsive helpers, and tag allowlist. */
 export { default } from './JsonRenderer';
 export type {
   JsonRendererProps,
