@@ -100,6 +100,36 @@ function getFormMessageKey(formId: string): string {
 /** When a form node has no `attributes.id`, validation/state keys use this id—set an explicit form `id` in JSON if you have multiple forms. */
 const FALLBACK_FORM_ID = 'default-form';
 
+/** Strip template-only keys before `createElement` so React does not forward them to DOM nodes. */
+const RENDERER_ONLY_ATTRIBUTE_KEYS = new Set([
+  'navRole',
+  'mobileMenuTarget',
+  'mobileToggleTarget',
+  'closeOnNavigate',
+  'openClass',
+  'closedClass',
+  'datePopoverClassName',
+  'dateCalendarClassName',
+  'selectContentClassName',
+  'selectItemClassName',
+  'validationSummaryFor',
+  'validationErrorFor',
+  'validationAllErrorsFor',
+  'formStateFor',
+  'formStateIs',
+  'formMessageFor',
+]);
+
+function stripRendererAttributes(attrs: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(attrs)) {
+    if (!RENDERER_ONLY_ATTRIBUTE_KEYS.has(key)) {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
 const DEFAULT_UI_PRESET = {
   dateTrigger: 'h-12 w-full',
   datePopover: '',
@@ -457,6 +487,7 @@ export default function JsonRenderer({
     closedClass: closedClassAttr,
     ...safeAttributes
   } = resolvedAttributes;
+  const domAttributes = stripRendererAttributes(safeAttributes as Record<string, unknown>);
   const mobileMenuTarget = asString(mobileMenuTargetAttr);
   const mobileToggleTarget = asString(mobileToggleTargetAttr);
   const closeOnNavigate = asBoolean(closeOnNavigateAttr);
@@ -553,7 +584,7 @@ export default function JsonRenderer({
   if (summaryTarget) {
     const summaryMessage = effectiveFormErrors[getFormErrorKey(summaryTarget)];
     if (!summaryMessage) return null;
-    return createElement(node.tag, { className: effectiveClassName, style: resolvedStyle, ...safeAttributes }, summaryMessage);
+    return createElement(node.tag, { className: effectiveClassName, style: resolvedStyle, ...domAttributes }, summaryMessage);
   }
 
   const stateTarget = asString(formStateFor);
@@ -567,7 +598,7 @@ export default function JsonRenderer({
   if (formMessageTarget) {
     const message = effectiveFormMessages[getFormMessageKey(formMessageTarget)];
     if (!message) return null;
-    return createElement(node.tag, { className: effectiveClassName, style: resolvedStyle, ...safeAttributes }, message);
+    return createElement(node.tag, { className: effectiveClassName, style: resolvedStyle, ...domAttributes }, message);
   }
 
   const allErrorsTarget = asString(validationAllErrorsFor);
@@ -576,7 +607,7 @@ export default function JsonRenderer({
       .filter(([key, value]) => key.startsWith(`field:${allErrorsTarget}:`) && value)
       .map(([, value]) => value as string);
     if (allErrors.length === 0) return null;
-    return createElement(node.tag, { className: effectiveClassName, style: resolvedStyle, ...safeAttributes }, allErrors.join(' | '));
+    return createElement(node.tag, { className: effectiveClassName, style: resolvedStyle, ...domAttributes }, allErrors.join(' | '));
   }
 
   const fieldErrorTarget = asString(validationErrorFor);
@@ -586,7 +617,7 @@ export default function JsonRenderer({
     const touched = Boolean(effectiveFormTouched[getFieldTouchedKey(formIdForField, fieldErrorTarget)]);
     if (!touched) return null;
     if (!fieldError) return null;
-    return createElement(node.tag, { className: effectiveClassName, style: resolvedStyle, ...safeAttributes }, fieldError);
+    return createElement(node.tag, { className: effectiveClassName, style: resolvedStyle, ...domAttributes }, fieldError);
   }
 
   const children = [
@@ -609,7 +640,7 @@ export default function JsonRenderer({
   const elementProps: Record<string, unknown> = {
     className: effectiveClassName,
     style: resolvedStyle,
-    ...safeAttributes,
+    ...domAttributes,
   };
 
   const fieldName = asString(safeAttributes.name);
