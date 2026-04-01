@@ -7,7 +7,7 @@ Published package name **`json-renderer`** (see `package.json` `name`). Import p
 ## Install
 
 ```bash
-npm install json-renderer
+npm install @patrikstep/json-renderer
 ```
 
 Peer dependencies: `react`, `react-dom` (18+ or 19+).
