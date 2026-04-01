@@ -100,8 +100,8 @@ function getFormMessageKey(formId: string): string {
 /** When a form node has no `attributes.id`, validation/state keys use this id—set an explicit form `id` in JSON if you have multiple forms. */
 const FALLBACK_FORM_ID = 'default-form';
 
-/** Strip template-only keys before `createElement` so React does not forward them to DOM nodes. */
-const RENDERER_ONLY_ATTRIBUTE_KEYS = new Set([
+/** Canonical camelCase names from `SiteNodeNavAttributes` / `SiteNodeFormRendererAttributes`. */
+const RENDERER_CONTROL_PROP_NAMES_CAMEL = [
   'navRole',
   'mobileMenuTarget',
   'mobileToggleTarget',
@@ -118,12 +118,42 @@ const RENDERER_ONLY_ATTRIBUTE_KEYS = new Set([
   'formStateFor',
   'formStateIs',
   'formMessageFor',
-]);
+] as const;
 
-function stripRendererAttributes(attrs: Record<string, unknown>): Record<string, unknown> {
+function toKebabCase(name: string): string {
+  return name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+}
+
+function toSnakeCase(name: string): string {
+  return name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+}
+
+/** All spellings editors/serializers might use for the same logical attribute. */
+function buildRendererControlPropDenylist(canonical: readonly string[]): Set<string> {
+  const set = new Set<string>();
+  for (const key of canonical) {
+    set.add(key);
+    set.add(key.toLowerCase());
+    set.add(toKebabCase(key));
+    set.add(toSnakeCase(key));
+  }
+  return set;
+}
+
+const RENDERER_CONTROL_PROP_KEYS = buildRendererControlPropDenylist(RENDERER_CONTROL_PROP_NAMES_CAMEL);
+
+/**
+ * Remove JsonRenderer-only props so they never reach `createElement` / DOM.
+ * `data-*` and `aria-*` are kept (legitimate HTML).
+ */
+function omitTemplateControlProps(attrs: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(attrs)) {
-    if (!RENDERER_ONLY_ATTRIBUTE_KEYS.has(key)) {
+    if (key.startsWith('data-') || key.startsWith('aria-')) {
+      out[key] = value;
+      continue;
+    }
+    if (!RENDERER_CONTROL_PROP_KEYS.has(key)) {
       out[key] = value;
     }
   }
@@ -487,7 +517,7 @@ export default function JsonRenderer({
     closedClass: closedClassAttr,
     ...safeAttributes
   } = resolvedAttributes;
-  const domAttributes = stripRendererAttributes(safeAttributes as Record<string, unknown>);
+  const domAttributes = omitTemplateControlProps(safeAttributes as Record<string, unknown>);
   const mobileMenuTarget = asString(mobileMenuTargetAttr);
   const mobileToggleTarget = asString(mobileToggleTargetAttr);
   const closeOnNavigate = asBoolean(closeOnNavigateAttr);
@@ -813,5 +843,9 @@ export default function JsonRenderer({
     };
   }
 
-  return createElement(node.tag, elementProps, ...children);
+  return createElement(
+    node.tag,
+    omitTemplateControlProps(elementProps as Record<string, unknown>) as Record<string, unknown>,
+    ...children
+  );
 }

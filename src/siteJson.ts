@@ -107,6 +107,7 @@ export interface SiteNodeResponsiveOverride {
 
 export type SiteNodeResponsive = Partial<Record<SiteBreakpoint, SiteNodeResponsiveOverride>>;
 
+/** Virtual attributes (not DOM): must stay in sync with `RENDERER_CONTROL_PROP_NAMES_CAMEL` in `JsonRenderer.tsx`. */
 export interface SiteNodeNavAttributes {
   navRole?: 'mobile-menu' | 'desktop-menu' | 'nav-toggle';
   mobileMenuTarget?: string;
@@ -116,7 +117,7 @@ export interface SiteNodeNavAttributes {
   closedClass?: string;
 }
 
-/** Styling hooks for custom date/select components (ignored by native controls). */
+/** Virtual attributes (not DOM); also list names in `RENDERER_CONTROL_PROP_NAMES_CAMEL` in `JsonRenderer.tsx`. */
 export interface SiteNodeFormRendererAttributes {
   datePopoverClassName?: string;
   dateCalendarClassName?: string;
