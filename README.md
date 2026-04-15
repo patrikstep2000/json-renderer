@@ -24,13 +24,13 @@ import type { SiteNode, SiteJSON, JsonRendererProps } from '@patrikstep/json-ren
 
 ## Usage
 
-Minimal example (only required props are `node`, `data`, and `viewportWidth`):
+Minimal example (default mode: only `siteJson` + `data` are required):
 
 ```tsx
 import JsonRenderer from '@patrikstep/json-renderer';
-import type { SiteNode } from '@patrikstep/json-renderer';
+import type { SiteJSON } from '@patrikstep/json-renderer';
 
-declare const rootSiteNode: SiteNode;
+declare const siteJson: SiteJSON;
 
 const data: Record<string, unknown> = {
   title: 'Hello',
@@ -38,11 +38,17 @@ const data: Record<string, unknown> = {
 };
 
 <JsonRenderer
-  node={rootSiteNode}
+  siteJson={siteJson}
   data={data}
-  viewportWidth={typeof window !== 'undefined' ? window.innerWidth : 1024}
 />
 ```
+
+By default the renderer:
+
+- resolves the current page from `siteJson.pages` using `window.location.pathname` (fallback `/`, then first page),
+- tracks `viewportWidth` internally with `window.innerWidth`,
+- keeps internal mobile menu state,
+- navigates internal links using browser history (`pushState`).
 
 Optional props you will often use in a full app:
 
@@ -52,14 +58,23 @@ Optional props you will often use in a full app:
 
 ```tsx
 <JsonRenderer
-  node={rootSiteNode}
+  siteJson={siteJson}
   data={data}
+  currentPath={pathFromRouter}
   viewportWidth={width}
   onInternalNavigate={(path) => router.push(path)}
   mobileMenus={mobileMenus}
   setMobileMenus={setMobileMenus}
   canRenderNode={(node) => node.id !== 'beta-block' || flags.beta}
 />
+```
+
+### Backward compatibility (`node` mode)
+
+You can still render a specific node directly:
+
+```tsx
+<JsonRenderer node={rootNode} data={data} />
 ```
 
 ### Data binding (`dataBinding`)
@@ -89,15 +104,14 @@ Lifted form state (`formErrors`, `setFormErrors`, …) is optional; if omitted, 
 
 ### Date and select fields
 
-By default, `input[type=date]` and `<select>` from the template are rendered as **native** HTML controls (no extra UI dependencies).
+By default, `input[type=date]` and `<select>` from the template are rendered as built-in controls from the package.
 
 To use your own components (e.g. shadcn `DatePicker` / `Select`), pass `components`:
 
 ```tsx
 <JsonRenderer
-  node={rootSiteNode}
+  siteJson={siteJson}
   data={data}
-  viewportWidth={width}
   components={{
     DateInput: MyDateInput,
     SelectInput: MySelectInput,

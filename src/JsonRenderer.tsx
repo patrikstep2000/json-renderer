@@ -5,6 +5,7 @@
 import {
   createElement,
   Fragment,
+  useEffect,
   useState,
   type ChangeEvent,
   type ComponentType,
@@ -19,6 +20,8 @@ import type {
   SiteFormValidationMap,
   SiteNode,
   SiteNodeAttributes,
+  SitePage,
+  SiteJSON,
 } from './types';
 import { isAllowedTag } from './nodeTypes';
 import { isHiddenAtBreakpoint, resolveResponsiveClassName, resolveResponsiveStyles } from './responsiveUtils';
@@ -51,10 +54,16 @@ export interface JsonRendererComponents {
 }
 
 export interface JsonRendererProps {
-  node: SiteNode;
+  /** Full template document. When provided, renderer resolves the current page node automatically. */
+  siteJson?: SiteJSON;
+  /** Optional explicit page path for `siteJson` mode. Defaults to current location pathname. */
+  currentPath?: string;
+  /** Backward-compatible direct node rendering mode. */
+  node?: SiteNode;
   /** Domain object for `dataBinding` / `repeat` / `visibility` path resolution (any JSON-serializable tree). */
   data: Record<string, unknown>;
-  viewportWidth: number;
+  /** Optional viewport override. If omitted, renderer tracks `window.innerWidth` automatically. */
+  viewportWidth?: number;
   context?: Record<string, unknown>;
   /**
    * Optional gate for domain-specific rules (e.g. hide a form when a feature flag is off).
@@ -177,6 +186,25 @@ function resolvePath(path: string, source: unknown): unknown {
     }
     return undefined;
   }, source);
+}
+
+function normalizePath(path: string): string {
+  if (!path) return '/';
+  if (path === '/') return '/';
+  return path.startsWith('/') ? path : `/${path}`;
+}
+
+function resolveNodeFromSiteJson(siteJson: SiteJSON, currentPath: string): SiteNode | null {
+  const pages: SitePage[] = Array.isArray(siteJson.pages) ? siteJson.pages : [];
+  if (pages.length === 0) return null;
+
+  const normalizedPath = normalizePath(currentPath);
+  const matchedPage =
+    pages.find((page) => page.slug === normalizedPath) ||
+    pages.find((page) => page.slug === '/') ||
+    pages[0];
+
+  return matchedPage?.root ?? null;
 }
 
 function resolveDataBinding(
@@ -426,14 +454,16 @@ function NativeJsonSelectInput({
 }
 
 export default function JsonRenderer({
-  node,
+  siteJson,
+  currentPath,
+  node: nodeProp,
   data,
-  viewportWidth,
+  viewportWidth: viewportWidthProp,
   context = {},
   canRenderNode,
-  onInternalNavigate,
-  mobileMenus = {},
-  setMobileMenus,
+  onInternalNavigate: onInternalNavigateProp,
+  mobileMenus: mobileMenusProp,
+  setMobileMenus: setMobileMenusProp,
   formErrors,
   setFormErrors,
   formTouched,
@@ -444,6 +474,52 @@ export default function JsonRenderer({
   setFormMessages,
   components,
 }: JsonRendererProps) {
+  const [internalViewportWidth, setInternalViewportWidth] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth : 1200
+  );
+  const [internalMobileMenus, setInternalMobileMenus] = useState<Record<string, boolean>>({});
+  const [internalPath, setInternalPath] = useState(() =>
+    normalizePath(currentPath ?? (typeof window !== 'undefined' ? window.location.pathname : '/'))
+  );
+
+  useEffect(() => {
+    if (viewportWidthProp != null) return;
+    const onResize = () => setInternalViewportWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [viewportWidthProp]);
+
+  useEffect(() => {
+    if (currentPath == null) return;
+    setInternalPath(normalizePath(currentPath));
+  }, [currentPath]);
+
+  useEffect(() => {
+    if (currentPath != null) return;
+    if (typeof window === 'undefined') return;
+    const onPopState = () => setInternalPath(normalizePath(window.location.pathname));
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [currentPath]);
+
+  const viewportWidth = viewportWidthProp ?? internalViewportWidth;
+  const mobileMenus = mobileMenusProp ?? internalMobileMenus;
+  const setMobileMenus = setMobileMenusProp ?? setInternalMobileMenus;
+  const effectivePath = currentPath ?? internalPath;
+  const node = nodeProp ?? (siteJson ? resolveNodeFromSiteJson(siteJson, effectivePath) : null);
+
+  const onInternalNavigate =
+    onInternalNavigateProp ??
+    ((path: string) => {
+      const normalized = normalizePath(path);
+      setInternalPath(normalized);
+      if (typeof window !== 'undefined') {
+        window.history.pushState({}, '', normalized);
+      }
+    });
+
+  if (!node) return null;
+
   const [localFormErrors, setLocalFormErrors] = useState<Record<string, string | undefined>>({});
   const [localFormTouched, setLocalFormTouched] = useState<Record<string, boolean | undefined>>({});
   const [localFormStates, setLocalFormStates] = useState<
