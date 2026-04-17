@@ -10,7 +10,7 @@ React component that renders **site JSON** templates: a recursive `SiteNode` tre
 npm install @patrikstep/json-renderer
 ```
 
-Peer dependencies: `react`, `react-dom` (18+ or 19+).
+Peer dependencies: `react`, `react-dom` (18+ or 19+), `tailwindcss` (`^4`).
 
 ## Public API
 
@@ -125,7 +125,13 @@ Implementations must match `JsonDateInputProps` and `JsonSelectInputProps` (expo
 
 Templates store Tailwind classes as strings. Your app’s Tailwind build must **see** those classes and any utilities used inside the renderer (e.g. `h-12`, `w-full`).
 
-With Tailwind v4, add a source path to this package in your CSS, for example:
+This package is now Tailwind-first. Tailwind v4 is a required peer dependency and consumers should:
+
+1. include the package build output as a Tailwind source,
+2. generate a safelist file from template JSON before build,
+3. add that generated safelist file as a Tailwind source.
+
+### 1) Add package source path (Tailwind v4)
 
 ```css
 @import "tailwindcss";
@@ -133,6 +139,58 @@ With Tailwind v4, add a source path to this package in your CSS, for example:
 ```
 
 The package installs under `node_modules/@patrikstep/json-renderer/` — adjust the `@source` path relative to your CSS entry file.
+
+### 2) Generate safelist from template JSON
+
+Use the built-in CLI:
+
+```bash
+npx json-renderer-tailwind-safelist \
+  --input ./src/templates/json \
+  --output ./src/template-tailwind-safelist.txt
+```
+
+You can pass multiple `--input` values (files or folders). The CLI recursively reads `.json` files, extracts Tailwind classes (`tailwindClassName`, `openClass`, `closedClass`, `className`), deduplicates, sorts, and writes one class per line.
+
+Programmatic API is also exported:
+
+```ts
+import {
+  extractTailwindClassesFromTemplateJson,
+  extractTailwindClassesFromTemplateJsonList,
+  serializeTailwindSafelist,
+} from '@patrikstep/json-renderer/tailwind';
+```
+
+### 3) Add generated safelist source
+
+```css
+@source "./template-tailwind-safelist.txt";
+```
+
+### Example consumer build hooks
+
+`core/package.json`:
+
+```json
+{
+  "scripts": {
+    "prebuild": "npm --prefix ../json-renderer run build && npm run generate:tailwind-safelist",
+    "generate:tailwind-safelist": "node ../json-renderer/dist/cli.js --input ../web/src/templates/json --output ./app/template-tailwind-safelist.txt"
+  }
+}
+```
+
+`web/package.json`:
+
+```json
+{
+  "scripts": {
+    "prebuild": "npm --prefix ../json-renderer run build && npm run generate:tailwind-safelist",
+    "generate:tailwind-safelist": "node ../json-renderer/dist/cli.js --input ./src/templates/json --output ./src/template-tailwind-safelist.txt"
+  }
+}
+```
 
 ## Developing this package
 
