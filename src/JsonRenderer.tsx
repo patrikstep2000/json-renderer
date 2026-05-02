@@ -115,8 +115,6 @@ const RENDERER_CONTROL_PROP_NAMES_CAMEL = [
   'mobileMenuTarget',
   'mobileToggleTarget',
   'closeOnNavigate',
-  'openClass',
-  'closedClass',
   'datePopoverClassName',
   'dateCalendarClassName',
   'selectContentClassName',
@@ -168,15 +166,6 @@ function omitTemplateControlProps(attrs: Record<string, unknown>): Record<string
   }
   return out;
 }
-
-const DEFAULT_UI_PRESET = {
-  dateTrigger: 'h-12 w-full',
-  datePopover: '',
-  dateCalendar: '',
-  selectTrigger: 'h-12 w-full',
-  selectContent: '',
-  selectItem: '',
-};
 
 /** Walks `source` by dot-separated segments; missing segments yield `undefined`. */
 function resolvePath(path: string, source: unknown): unknown {
@@ -589,40 +578,31 @@ export default function JsonRenderer({
     mobileMenuTarget: mobileMenuTargetAttr,
     mobileToggleTarget: mobileToggleTargetAttr,
     closeOnNavigate: closeOnNavigateAttr,
-    openClass: openClassAttr,
-    closedClass: closedClassAttr,
     ...safeAttributes
   } = resolvedAttributes;
   const domAttributes = omitTemplateControlProps(safeAttributes as Record<string, unknown>);
   const mobileMenuTarget = asString(mobileMenuTargetAttr);
   const mobileToggleTarget = asString(mobileToggleTargetAttr);
   const closeOnNavigate = asBoolean(closeOnNavigateAttr);
-  const openClass = asString(openClassAttr) ?? 'block';
-  const closedClass = asString(closedClassAttr) ?? 'hidden';
-  const mergedClassName = resolveResponsiveClassName(
+  const effectiveClassName = resolveResponsiveClassName(
     node.className ?? asString(attributeClassName) ?? asString(htmlClass),
-    node.tailwindClassName,
     node.responsive,
     viewportWidth
   );
-  let effectiveClassName = mergedClassName;
 
-  if (navRole === 'mobile-menu' && mobileMenuTarget) {
-    const isOpen = Boolean(mobileMenus[mobileMenuTarget]);
-    effectiveClassName = `${mergedClassName ?? ''} ${isOpen ? openClass : closedClass}`.trim();
-  }
+  const isMobileMenu = navRole === 'mobile-menu' && Boolean(mobileMenuTarget);
+  const mobileMenuOpen = isMobileMenu ? Boolean(mobileMenus[mobileMenuTarget!]) : undefined;
 
   if (node.tag === 'input' && safeAttributes.type === 'date') {
-    const triggerClassName = `${DEFAULT_UI_PRESET.dateTrigger} ${mergedClassName ?? ''}`.trim();
     const formId = asString(context.__currentFormId as SiteAttributeValue) ?? FALLBACK_FORM_ID;
     const fieldName = asString(safeAttributes.name);
     return (
       <DateCmp
-        className={triggerClassName}
+        className={effectiveClassName}
         placeholder={asString(safeAttributes.placeholder)}
         disabled={asBoolean(safeAttributes.disabled)}
-        popoverClassName={`${DEFAULT_UI_PRESET.datePopover} ${asString(datePopoverClassName) ?? ''}`.trim()}
-        calendarClassName={`${DEFAULT_UI_PRESET.dateCalendar} ${asString(dateCalendarClassName) ?? ''}`.trim()}
+        popoverClassName={asString(datePopoverClassName)}
+        calendarClassName={asString(dateCalendarClassName)}
         name={fieldName}
         onValueChange={() => {
           if (!fieldName) return;
@@ -645,21 +625,19 @@ export default function JsonRenderer({
           className:
             resolveResponsiveClassName(
               child.className ?? asString(child.attributes?.className) ?? asString(child.attributes?.class),
-              child.tailwindClassName,
               child.responsive,
               viewportWidth
             ) ?? undefined,
         })) ?? [];
-    const triggerClassName = `${DEFAULT_UI_PRESET.selectTrigger} ${mergedClassName ?? ''}`.trim();
 
     return (
       <SelectCmp
-        className={triggerClassName}
+        className={effectiveClassName}
         options={options}
         disabled={asBoolean(safeAttributes.disabled)}
         placeholder={asString(safeAttributes.placeholder)}
-        contentClassName={`${DEFAULT_UI_PRESET.selectContent} ${asString(selectContentClassName) ?? ''}`.trim()}
-        itemClassName={`${DEFAULT_UI_PRESET.selectItem} ${asString(selectItemClassName) ?? ''}`.trim()}
+        contentClassName={asString(selectContentClassName)}
+        itemClassName={asString(selectItemClassName)}
         name={fieldName}
         onValueChange={() => {
           if (!fieldName) return;
@@ -748,6 +726,10 @@ export default function JsonRenderer({
     style: resolvedStyle,
     ...domAttributes,
   };
+
+  if (isMobileMenu) {
+    elementProps['data-mobile-menu-open'] = mobileMenuOpen ? 'true' : 'false';
+  }
 
   const fieldName = asString(safeAttributes.name);
   const formId = asString(context.__currentFormId as SiteAttributeValue) ?? FALLBACK_FORM_ID;

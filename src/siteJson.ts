@@ -101,7 +101,6 @@ export type SiteFormValidationMap = Record<string, SiteFormValidationRule>;
 export interface SiteNodeResponsiveOverride {
   style?: Record<string, string>;
   className?: string;
-  tailwindClassName?: string;
   hidden?: boolean;
 }
 
@@ -113,8 +112,6 @@ export interface SiteNodeNavAttributes {
   mobileMenuTarget?: string;
   mobileToggleTarget?: string;
   closeOnNavigate?: 'true' | 'false';
-  openClass?: string;
-  closedClass?: string;
 }
 
 /** Virtual attributes (not DOM); also list names in `RENDERER_CONTROL_PROP_NAMES_CAMEL` in `JsonRenderer.tsx`. */
@@ -172,7 +169,6 @@ export interface SiteNode {
   style: Record<string, string>;
   attributes?: SiteNodeAttributes;
   className?: string;
-  tailwindClassName?: string;
   textContent?: string;
   children?: SiteNode[];
   dataBinding?: SiteNodeBinding;
@@ -194,6 +190,8 @@ export interface SitePage {
 
 export interface SiteJSON {
   version: SiteJSONVersion;
+  /** Identifier for the template's static CSS bundle (e.g. "bistro" → /templates/bistro.css). */
+  templateId?: string;
   meta: SiteMeta;
   globalStyles: GlobalStyles;
   pages: SitePage[];

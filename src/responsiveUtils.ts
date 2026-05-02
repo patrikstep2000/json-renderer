@@ -35,15 +35,13 @@ function compactClasses(...values: Array<string | undefined>): string | undefine
 
 export function resolveResponsiveClassName(
   className: string | undefined,
-  tailwindClassName: string | undefined,
   responsive: SiteNode['responsive'],
   viewportWidth: number
 ): string | undefined {
   const breakpoint = getBreakpoint(viewportWidth);
   const responsiveClassName = responsive?.[breakpoint]?.className;
-  const responsiveTailwind = responsive?.[breakpoint]?.tailwindClassName;
 
-  return compactClasses(className, tailwindClassName, responsiveClassName, responsiveTailwind);
+  return compactClasses(className, responsiveClassName);
 }
 
 export function isHiddenAtBreakpoint(

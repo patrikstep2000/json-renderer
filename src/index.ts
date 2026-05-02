@@ -9,4 +9,3 @@ export type {
 export * from './types';
 export { ALLOWED_TAGS, isAllowedTag } from './nodeTypes';
 export * from './responsiveUtils';
-export * from './tailwind';
