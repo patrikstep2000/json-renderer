@@ -192,9 +192,75 @@ export interface SiteJSON {
   version: SiteJSONVersion;
   /** Identifier for the template's static CSS bundle (e.g. "bistro" → /templates/bistro.css). */
   templateId?: string;
+  /** Optional embedded CSS injected as a <style> tag at render time. Sanitized by sanitizeSiteCss before rendering. */
+  css?: string;
   meta: SiteMeta;
   globalStyles: GlobalStyles;
   pages: SitePage[];
 }
 
 export type SiteJSONDraft = Omit<SiteJSON, 'version'> & { version?: SiteJSONVersion };
+
+const CSS_DANGEROUS_TOKEN_RE = /<\s*\/?\s*(?:style|script)/gi;
+const CSS_JS_SCHEME_RE = /javascript\s*:/gi;
+const CSS_EXPRESSION_RE = /expression\s*\(/gi;
+const CSS_IMPORT_RE = /@import\s+([^;]+);?/gi;
+const CSS_DECLARATION_WITH_URL_RE = /([A-Za-z-]+)\s*:\s*([^;{}]*url\([^;{}]*\)[^;{}]*)(;?)/gi;
+const CSS_URL_IN_DECLARATION_RE = /url\(\s*([^)]*?)\s*\)/gi;
+
+function stripWrappingQuotes(value: string): string {
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1).trim();
+  }
+  return value;
+}
+
+function isAllowedCssUrl(rawValue: string): boolean {
+  const normalized = stripWrappingQuotes(rawValue.trim()).toLowerCase();
+  if (!normalized) return false;
+  if (normalized.startsWith('https://')) return true;
+  if (normalized.startsWith('data:image/')) return true;
+  if (normalized.startsWith('/')) return true;
+  if (normalized.startsWith('./') || normalized.startsWith('../')) return true;
+  if (normalized.startsWith('#')) return true;
+  if (normalized.startsWith('//')) return false;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(normalized)) return false;
+  return true;
+}
+
+/**
+ * Defense-in-depth sanitizer for tenant-authored embedded CSS.
+ * Not a full parser: strips obvious style/script escapes and external URL exfil vectors.
+ */
+export function sanitizeSiteCss(input: string): string {
+  let cleaned = input;
+
+  cleaned = cleaned.replace(CSS_DANGEROUS_TOKEN_RE, '');
+  cleaned = cleaned.replace(CSS_JS_SCHEME_RE, '');
+  cleaned = cleaned.replace(CSS_EXPRESSION_RE, '');
+
+  cleaned = cleaned.replace(CSS_IMPORT_RE, (fullMatch, importTarget: string) => {
+    const httpsDirect =
+      /^\s*(['"])https:\/\/.+\1\s*$/i.test(importTarget) ||
+      /^\s*url\(\s*(['"])https:\/\/.+\1\s*\)\s*$/i.test(importTarget) ||
+      /^\s*url\(\s*https:\/\/[^)"'\s][^)]*\)\s*$/i.test(importTarget);
+    return httpsDirect ? fullMatch : '';
+  });
+
+  cleaned = cleaned.replace(CSS_DECLARATION_WITH_URL_RE, (fullMatch, _propName, declarationValue, semicolon) => {
+    CSS_URL_IN_DECLARATION_RE.lastIndex = 0;
+    let urlMatch: RegExpExecArray | null = CSS_URL_IN_DECLARATION_RE.exec(declarationValue);
+    while (urlMatch) {
+      if (!isAllowedCssUrl(urlMatch[1] ?? '')) {
+        return '';
+      }
+      urlMatch = CSS_URL_IN_DECLARATION_RE.exec(declarationValue);
+    }
+    return `${fullMatch.replace(/\s*;?$/, '')}${semicolon || ';'}`;
+  });
+
+  return cleaned;
+}

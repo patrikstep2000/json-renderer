@@ -6,11 +6,13 @@ import {
   createElement,
   Fragment,
   useEffect,
+  useMemo,
   useState,
   type ChangeEvent,
   type ComponentType,
   type Dispatch,
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
   type SetStateAction,
 } from 'react';
 import type {
@@ -25,6 +27,7 @@ import type {
 } from './types';
 import { isAllowedTag } from './nodeTypes';
 import { isHiddenAtBreakpoint, resolveResponsiveClassName, resolveResponsiveStyles } from './responsiveUtils';
+import { sanitizeSiteCss } from './siteJson';
 
 export interface JsonDateInputProps {
   className?: string;
@@ -463,6 +466,24 @@ export default function JsonRenderer({
   setFormMessages,
   components,
 }: JsonRendererProps) {
+  const sanitizedEmbeddedCss = useMemo(() => {
+    const rawCss = siteJson?.css;
+    if (typeof rawCss !== 'string') return '';
+    const trimmed = rawCss.trim();
+    if (!trimmed) return '';
+    return sanitizeSiteCss(trimmed);
+  }, [siteJson?.css]);
+
+  const renderWithEmbeddedCss = (content: ReactNode) => {
+    if (!sanitizedEmbeddedCss) return content;
+    return (
+      <>
+        <style>{sanitizedEmbeddedCss}</style>
+        {content}
+      </>
+    );
+  };
+
   const [internalViewportWidth, setInternalViewportWidth] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1200
   );
@@ -507,7 +528,7 @@ export default function JsonRenderer({
       }
     });
 
-  if (!node) return null;
+  if (!node) return renderWithEmbeddedCss(null);
 
   const [localFormErrors, setLocalFormErrors] = useState<Record<string, string | undefined>>({});
   const [localFormTouched, setLocalFormTouched] = useState<Record<string, boolean | undefined>>({});
@@ -597,19 +618,21 @@ export default function JsonRenderer({
     const formId = asString(context.__currentFormId as SiteAttributeValue) ?? FALLBACK_FORM_ID;
     const fieldName = asString(safeAttributes.name);
     return (
-      <DateCmp
-        className={effectiveClassName}
-        placeholder={asString(safeAttributes.placeholder)}
-        disabled={asBoolean(safeAttributes.disabled)}
-        popoverClassName={asString(datePopoverClassName)}
-        calendarClassName={asString(dateCalendarClassName)}
-        name={fieldName}
-        onValueChange={() => {
-          if (!fieldName) return;
-          effectiveSetFormTouched((prev) => ({ ...prev, [getFieldTouchedKey(formId, fieldName)]: true }));
-          effectiveSetFormErrors((prev) => ({ ...prev, [getFieldErrorKey(formId, fieldName)]: undefined }));
-        }}
-      />
+      renderWithEmbeddedCss(
+        <DateCmp
+          className={effectiveClassName}
+          placeholder={asString(safeAttributes.placeholder)}
+          disabled={asBoolean(safeAttributes.disabled)}
+          popoverClassName={asString(datePopoverClassName)}
+          calendarClassName={asString(dateCalendarClassName)}
+          name={fieldName}
+          onValueChange={() => {
+            if (!fieldName) return;
+            effectiveSetFormTouched((prev) => ({ ...prev, [getFieldTouchedKey(formId, fieldName)]: true }));
+            effectiveSetFormErrors((prev) => ({ ...prev, [getFieldErrorKey(formId, fieldName)]: undefined }));
+          }}
+        />
+      )
     );
   }
 
@@ -631,36 +654,40 @@ export default function JsonRenderer({
         })) ?? [];
 
     return (
-      <SelectCmp
-        className={effectiveClassName}
-        options={options}
-        disabled={asBoolean(safeAttributes.disabled)}
-        placeholder={asString(safeAttributes.placeholder)}
-        contentClassName={asString(selectContentClassName)}
-        itemClassName={asString(selectItemClassName)}
-        name={fieldName}
-        onValueChange={() => {
-          if (!fieldName) return;
-          effectiveSetFormTouched((prev) => ({ ...prev, [getFieldTouchedKey(formId, fieldName)]: true }));
-          effectiveSetFormErrors((prev) => ({ ...prev, [getFieldErrorKey(formId, fieldName)]: undefined }));
-        }}
-      />
+      renderWithEmbeddedCss(
+        <SelectCmp
+          className={effectiveClassName}
+          options={options}
+          disabled={asBoolean(safeAttributes.disabled)}
+          placeholder={asString(safeAttributes.placeholder)}
+          contentClassName={asString(selectContentClassName)}
+          itemClassName={asString(selectItemClassName)}
+          name={fieldName}
+          onValueChange={() => {
+            if (!fieldName) return;
+            effectiveSetFormTouched((prev) => ({ ...prev, [getFieldTouchedKey(formId, fieldName)]: true }));
+            effectiveSetFormErrors((prev) => ({ ...prev, [getFieldErrorKey(formId, fieldName)]: undefined }));
+          }}
+        />
+      )
     );
   }
 
   if (node.repeat) {
     const items = resolveRepeatData(node, data, context);
     return (
-      <>
-        {items.map((item, index) => (
-          <JsonRenderer
-            key={`${node.id}-${index}`}
-            node={{ ...node, repeat: undefined }}
-            context={{ ...context, [node.repeat!.itemVariable]: item }}
-            {...childRendererProps}
-          />
-        ))}
-      </>
+      renderWithEmbeddedCss(
+        <>
+          {items.map((item, index) => (
+            <JsonRenderer
+              key={`${node.id}-${index}`}
+              node={{ ...node, repeat: undefined }}
+              context={{ ...context, [node.repeat!.itemVariable]: item }}
+              {...childRendererProps}
+            />
+          ))}
+        </>
+      )
     );
   }
 
@@ -668,7 +695,9 @@ export default function JsonRenderer({
   if (summaryTarget) {
     const summaryMessage = effectiveFormErrors[getFormErrorKey(summaryTarget)];
     if (!summaryMessage) return null;
-    return createElement(node.tag, { className: effectiveClassName, style: resolvedStyle, ...domAttributes }, summaryMessage);
+    return renderWithEmbeddedCss(
+      createElement(node.tag, { className: effectiveClassName, style: resolvedStyle, ...domAttributes }, summaryMessage)
+    );
   }
 
   const stateTarget = asString(formStateFor);
@@ -682,7 +711,9 @@ export default function JsonRenderer({
   if (formMessageTarget) {
     const message = effectiveFormMessages[getFormMessageKey(formMessageTarget)];
     if (!message) return null;
-    return createElement(node.tag, { className: effectiveClassName, style: resolvedStyle, ...domAttributes }, message);
+    return renderWithEmbeddedCss(
+      createElement(node.tag, { className: effectiveClassName, style: resolvedStyle, ...domAttributes }, message)
+    );
   }
 
   const allErrorsTarget = asString(validationAllErrorsFor);
@@ -691,7 +722,9 @@ export default function JsonRenderer({
       .filter(([key, value]) => key.startsWith(`field:${allErrorsTarget}:`) && value)
       .map(([, value]) => value as string);
     if (allErrors.length === 0) return null;
-    return createElement(node.tag, { className: effectiveClassName, style: resolvedStyle, ...domAttributes }, allErrors.join(' | '));
+    return renderWithEmbeddedCss(
+      createElement(node.tag, { className: effectiveClassName, style: resolvedStyle, ...domAttributes }, allErrors.join(' | '))
+    );
   }
 
   const fieldErrorTarget = asString(validationErrorFor);
@@ -701,7 +734,9 @@ export default function JsonRenderer({
     const touched = Boolean(effectiveFormTouched[getFieldTouchedKey(formIdForField, fieldErrorTarget)]);
     if (!touched) return null;
     if (!fieldError) return null;
-    return createElement(node.tag, { className: effectiveClassName, style: resolvedStyle, ...domAttributes }, fieldError);
+    return renderWithEmbeddedCss(
+      createElement(node.tag, { className: effectiveClassName, style: resolvedStyle, ...domAttributes }, fieldError)
+    );
   }
 
   const children = [
@@ -901,9 +936,11 @@ export default function JsonRenderer({
     };
   }
 
-  return createElement(
-    node.tag,
-    omitTemplateControlProps(elementProps as Record<string, unknown>) as Record<string, unknown>,
-    ...children
+  return renderWithEmbeddedCss(
+    createElement(
+      node.tag,
+      omitTemplateControlProps(elementProps as Record<string, unknown>) as Record<string, unknown>,
+      ...children
+    )
   );
 }
