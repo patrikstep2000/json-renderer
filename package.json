@@ -1,6 +1,6 @@
 {
   "name": "@patrikstep/json-renderer",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Generic React renderer for declarative site JSON (SiteNode tree + arbitrary data bindings)",
   "type": "module",
   "main": "./dist/index.js",
