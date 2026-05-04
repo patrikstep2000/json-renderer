@@ -3,6 +3,7 @@
  * `data` is never mutated; paths are read via dot notation. Unknown tags are dropped (see `nodeTypes.ts`).
  */
 import {
+  type CSSProperties,
   createElement,
   Fragment,
   useEffect,
@@ -203,7 +204,7 @@ function resolveDataBinding(
   node: SiteNode,
   data: Record<string, unknown>,
   context: Record<string, unknown>
-): { textContent?: string; attributes?: SiteNodeAttributes } {
+): { textContent?: string; attributes?: SiteNodeAttributes; style?: CSSProperties } {
   if (!node.dataBinding) return { textContent: node.textContent };
 
   const { section, field, type } = node.dataBinding;
@@ -224,10 +225,39 @@ function resolveDataBinding(
   }
 
   if (type === 'image') {
+    const imageUrl = typeof value === 'string' && value ? value : '';
+    if (node.tag === 'img') {
+      return {
+        attributes: {
+          ...(node.attributes ?? {}),
+          src: imageUrl,
+        },
+      };
+    }
+
+    const existingStyle = node.attributes?.style;
+    const baseStyle =
+      existingStyle && typeof existingStyle === 'object' && !Array.isArray(existingStyle)
+        ? (existingStyle as Record<string, unknown>)
+        : {};
     return {
+      attributes: node.attributes,
+      style: {
+        ...baseStyle,
+        backgroundImage: imageUrl ? `url("${imageUrl}")` : 'none',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      },
+    };
+  }
+
+  if (type === 'link') {
+    return {
+      textContent: node.textContent,
       attributes: {
         ...(node.attributes ?? {}),
-        src: typeof value === 'string' && value ? value : '',
+        href: typeof value === 'string' && value ? value : '#',
       },
     };
   }
@@ -602,6 +632,14 @@ export default function JsonRenderer({
     ...safeAttributes
   } = resolvedAttributes;
   const domAttributes = omitTemplateControlProps(safeAttributes as Record<string, unknown>);
+  const { style: attributeStyle, ...domAttributesWithoutStyle } = domAttributes;
+  const mergedNodeStyle: CSSProperties = {
+    ...(resolvedStyle ?? {}),
+    ...(resolved.style ?? {}),
+    ...((attributeStyle && typeof attributeStyle === 'object' && !Array.isArray(attributeStyle)
+      ? (attributeStyle as CSSProperties)
+      : {}) as CSSProperties),
+  };
   const mobileMenuTarget = asString(mobileMenuTargetAttr);
   const mobileToggleTarget = asString(mobileToggleTargetAttr);
   const closeOnNavigate = asBoolean(closeOnNavigateAttr);
@@ -758,8 +796,8 @@ export default function JsonRenderer({
 
   const elementProps: Record<string, unknown> = {
     className: effectiveClassName,
-    style: resolvedStyle,
-    ...domAttributes,
+    style: mergedNodeStyle,
+    ...domAttributesWithoutStyle,
   };
 
   if (isMobileMenu) {
