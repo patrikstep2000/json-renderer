@@ -225,13 +225,18 @@ function resolveDataBinding(
   }
 
   if (type === 'image') {
-    const imageUrl = typeof value === 'string' && value ? value : '';
+    const imageUrl = typeof value === 'string' ? value.trim() : '';
     if (node.tag === 'img') {
+      const imageAttributes: SiteNodeAttributes = {
+        ...(node.attributes ?? {}),
+      };
+      if (imageUrl) {
+        imageAttributes.src = imageUrl;
+      } else {
+        delete imageAttributes.src;
+      }
       return {
-        attributes: {
-          ...(node.attributes ?? {}),
-          src: imageUrl,
-        },
+        attributes: imageAttributes,
       };
     }
 
