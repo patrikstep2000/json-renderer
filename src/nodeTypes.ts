@@ -35,6 +35,23 @@ export const ALLOWED_TAGS = new Set([
   'th',
   'thead',
   'tbody',
+  'article',
+  'aside',
+  'figure',
+  'figcaption',
+  'blockquote',
+  'em',
+  'strong',
+  'i',
+  'b',
+  'small',
+  'u',
+  'mark',
+  'time',
+  'code',
+  'pre',
+  'hr',
+  'br',
 ]);
 
 export function isAllowedTag(tag: string): boolean {
